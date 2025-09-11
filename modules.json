@@ -50,6 +50,11 @@
                         "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
                         "installed_by": ["fastq_create_umi_consensus_fgbio"]
                     },
+                    "fgbio/collectduplexseqmetrics": {
+                        "branch": "master",
+                        "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
+                        "installed_by": ["modules"]
+                    },
                     "fgbio/fastqtobam": {
                         "branch": "master",
                         "git_sha": "16af45709c1eca0aa9a8378ed790f15696dd7f1e",
@@ -76,6 +81,16 @@
                         "installed_by": ["modules"]
                     },
                     "multiqc": {
+                        "branch": "master",
+                        "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
+                        "installed_by": ["modules"]
+                    },
+                    "picard/collecthsmetrics": {
+                        "branch": "master",
+                        "git_sha": "b8e9f7029eb33f21df6d8470ba6d7cc4bc815358",
+                        "installed_by": ["modules"]
+                    },
+                    "picard/collectwgsmetrics": {
                         "branch": "master",
                         "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
                         "installed_by": ["modules"]

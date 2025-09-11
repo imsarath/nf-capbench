@@ -14,8 +14,9 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_capbench_pipeline'
 
 
-include { ALIGNMENT                                         } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
+include { ALIGNMENT                                          } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
 include { FASTQ_CREATE_UMI_CONSENSUS_FGBIO as UMI_PROCESSING } from '../subworkflows/nf-core/fastq_create_umi_consensus_fgbio/main'
+include { PICARD_COLLECTWGSMETRICS                           } from '../modules/nf-core/picard/collectwgsmetrics/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -114,6 +115,18 @@ workflow CAPBENCH {
         ch_versions = ch_versions.mix(ALIGNMENT.out.versions.first())
         ch_aligned_bam = ALIGNMENT.out.dedup_bam
             .join(ALIGNMENT.out.dedup_bai)
+    }
+
+    if (params.low_pass_wgs) {
+
+        PICARD_COLLECTWGSMETRICS (
+            ch_aligned_bam,
+            ch_genome_fasta,
+            ch_genome_fai,
+            null // No interval list provided
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTWGSMETRICS.out.metrics.collect{it[1]}.ifEmpty([]))
+        ch_versions = ch_versions.mix(PICARD_COLLECTWGSMETRICS.out.versions.first())
     }
 
     //
