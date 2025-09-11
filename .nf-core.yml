@@ -1,0 +1,15 @@
+repository_type: pipeline
+
+nf_core_version: 3.3.2
+
+lint: {}
+
+template:
+  org: nf-core
+  name: capbench
+  description: An automated nextflow pipeline for capture kit benchmarking
+  author: Sarath Kumar Murugan
+  version: 1.0.0dev
+  force: true
+  outdir: nf-capbench
+  is_nfcore: true
