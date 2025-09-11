@@ -4,7 +4,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
-include { FASTP                 } from '../modules/nf-core/fastp/main'
+include { FASTP                  } from '../modules/nf-core/fastp/main'
+include { CAT_FASTQ              } from '../modules/nf-core/cat/fastq/main'
+include { SAMTOOLS_INDEX         } from '../modules/nf-core/samtools/index/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -12,8 +14,8 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_capbench_pipeline'
 
 
-include { ALIGNMENT } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
-
+include { ALIGNMENT                                         } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
+include { FASTQ_CREATE_UMI_CONSENSUS_FGBIO as UMI_PROCESSING } from '../subworkflows/nf-core/fastq_create_umi_consensus_fgbio/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -56,17 +58,63 @@ workflow CAPBENCH {
     ch_versions = ch_versions.mix(FASTP.out.versions.first())
     ch_input_reads = FASTP.out.reads
 
-    ALIGNMENT(
+    if (params.umi_structure) {
+
+        ch_input_reads
+            .map { meta, reads ->
+                def id = "${meta.sample_id}".toString()
+                meta   = meta + [id: id]
+                return [meta.sample_id, [meta , reads]]
+            }
+            .groupTuple()
+            .map { sample_id, grouped_reads ->
+                def metas = grouped_reads.collect{it[0]}
+                def files = grouped_reads.collect{it[1]}.flatten()
+                return [metas[0], files]
+            }
+            .set { ch_input_reads }
+
+        CAT_FASTQ (
+            ch_input_reads
+        )
+
+
+        UMI_PROCESSING(
+            CAT_FASTQ.out.reads,
+            ch_genome_fasta,
+            ch_bwamem2_index,
+            ch_dict,
+            "paired",
+            "bwa-mem2",
+            params.duplex,
+            params.min_reads,
+            params.min_baseq,
+            params.max_base_error_rate
+        )
+
+        SAMTOOLS_INDEX(
+            UMI_PROCESSING.out.mappedconsensusbam
+        )
+
+        ch_aligned_bam = UMI_PROCESSING.out.mappedconsensusbam
+            .join(SAMTOOLS_INDEX.out.bai)
+
+        ch_versions = ch_versions.mix(UMI_PROCESSING.out.versions.first())
+
+    } else {
+
+        ALIGNMENT(
             ch_input_reads,
             ch_genome_fasta,
             ch_genome_fai,
             ch_bwamem2_index
         )
 
-    ch_multiqc_files = ch_multiqc_files.mix(ALIGNMENT.out.dedup_metrics.collect{it[1]}.ifEmpty([]))
-    ch_versions = ch_versions.mix(ALIGNMENT.out.versions.first())
-    ch_aligned_bam = ALIGNMENT.out.dedup_bam
-        .join(ALIGNMENT.out.dedup_bai)
+        ch_multiqc_files = ch_multiqc_files.mix(ALIGNMENT.out.dedup_metrics.collect{it[1]}.ifEmpty([]))
+        ch_versions = ch_versions.mix(ALIGNMENT.out.versions.first())
+        ch_aligned_bam = ALIGNMENT.out.dedup_bam
+            .join(ALIGNMENT.out.dedup_bai)
+    }
 
     //
     // Collate and save software versions
