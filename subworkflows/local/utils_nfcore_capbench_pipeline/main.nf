@@ -76,6 +76,7 @@ workflow PIPELINE_INITIALISATION {
         .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fastq_1, fastq_2 ->
+                meta.id = meta.sample_id  // Add sample name to meta object for easier access later on
                 if (!fastq_2) {
                     return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
                 } else {

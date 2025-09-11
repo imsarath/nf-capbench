@@ -7,11 +7,22 @@
     "items": {
         "type": "object",
         "properties": {
-            "sample": {
+            "sample_id": {
                 "type": "string",
                 "pattern": "^\\S+$",
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
-                "meta": ["id"]
+                "meta": ["sample_id"]
+            },
+            "capturekit": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "capturekit name must be provided and cannot contain spaces",
+                "meta": ["capturekit"]
+            },
+            "lane": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "meta": ["lane"]
             },
             "fastq_1": {
                 "type": "string",
@@ -27,7 +38,6 @@
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
             }
-        },
-        "required": ["sample", "fastq_1"]
+        }
     }
 }

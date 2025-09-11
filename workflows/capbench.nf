@@ -4,11 +4,15 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
+include { FASTP                 } from '../modules/nf-core/fastp/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_capbench_pipeline'
+
+
+include { ALIGNMENT } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,6 +24,11 @@ workflow CAPBENCH {
 
     take:
     ch_samplesheet // channel: samplesheet read in from --input
+    ch_genome_fasta
+    ch_genome_fai
+    ch_dict
+    ch_bwamem2_index
+
     main:
 
     ch_versions = Channel.empty()
@@ -32,6 +41,32 @@ workflow CAPBENCH {
     )
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+
+    //
+    // MODULE: Run FastP
+    //
+    FASTP (
+        ch_samplesheet,
+        [], // adapter_fasta: not used in this pipeline
+        params.discard_trimmed_pass,
+        params.save_trimmed_fail,
+        params.save_merged
+    )
+
+    ch_versions = ch_versions.mix(FASTP.out.versions.first())
+    ch_input_reads = FASTP.out.reads
+
+    ALIGNMENT(
+            ch_input_reads,
+            ch_genome_fasta,
+            ch_genome_fai,
+            ch_bwamem2_index
+        )
+
+    ch_multiqc_files = ch_multiqc_files.mix(ALIGNMENT.out.dedup_metrics.collect{it[1]}.ifEmpty([]))
+    ch_versions = ch_versions.mix(ALIGNMENT.out.versions.first())
+    ch_aligned_bam = ALIGNMENT.out.dedup_bam
+        .join(ALIGNMENT.out.dedup_bai)
 
     //
     // Collate and save software versions
