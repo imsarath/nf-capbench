@@ -123,8 +123,9 @@ workflow CAPBENCH {
             ch_aligned_bam,
             ch_genome_fasta,
             ch_genome_fai,
-            null // No interval list provided
+            Channel.value([])
         )
+
         ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTWGSMETRICS.out.metrics.collect{it[1]}.ifEmpty([]))
         ch_versions = ch_versions.mix(PICARD_COLLECTWGSMETRICS.out.versions.first())
     }
