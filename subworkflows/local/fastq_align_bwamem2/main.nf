@@ -24,7 +24,8 @@ workflow ALIGNMENT {
     ch_input_fastqs = ch_input_reads
         .map { meta, reads ->
             meta  = meta + [
-                id         : "${meta.sample_id}.${meta.lane}".toString(),
+                id         : "${meta.id}.${meta.lane}".toString(),
+                sample_id  : meta.id,
                 read_group : "${meta.sample_id}.${meta.lane}".toString(),
                 split      : null
             ]

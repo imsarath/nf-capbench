@@ -63,22 +63,21 @@ workflow CAPBENCH {
 
         ch_input_reads
             .map { meta, reads ->
-                def id = "${meta.sample_id}".toString()
-                meta   = meta + [id: id]
-                return [meta.sample_id, [meta , reads]]
+                return [meta.id, [meta , reads]]
             }
             .groupTuple()
-            .map { sample_id, grouped_reads ->
+            .map { id, grouped_reads ->
                 def metas = grouped_reads.collect{it[0]}
                 def files = grouped_reads.collect{it[1]}.flatten()
                 return [metas[0], files]
             }
             .set { ch_input_reads }
 
+        ch_input_reads.view()
+
         CAT_FASTQ (
             ch_input_reads
         )
-
 
         UMI_PROCESSING(
             CAT_FASTQ.out.reads,
