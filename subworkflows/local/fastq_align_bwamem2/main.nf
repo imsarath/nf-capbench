@@ -2,8 +2,8 @@
 //
 //
 
-include { BWAMEM2_MEM } from '../../../modules/nf-core/bwamem2/mem/main'
-include { GATK4_MARKDUPLICATES as MARKDUPLICATES } from '../../../modules/nf-core/gatk4/markduplicates/main'
+include { BWAMEM2_MEM                             } from '../../../modules/nf-core/bwamem2/mem/main'
+include { GATK4_MARKDUPLICATES as MARKDUPLICATES  } from '../../../modules/nf-core/gatk4/markduplicates/main'
 
 
 workflow ALIGNMENT {
