@@ -26,7 +26,7 @@ workflow ALIGNMENT {
             meta  = meta + [
                 id         : "${meta.id}.${meta.lane}".toString(),
                 sample_id  : meta.id,
-                read_group : "${meta.id}.${meta.lane}".toString(),
+                read_group : "\"@RG\\tID:${meta.id}\\tSM:${meta.id}_${meta.lane}\\tLB:${meta.id}\\tPL:${params.seq_platform}\"".toString(),
                 split      : null
             ]
 
