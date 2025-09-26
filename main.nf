@@ -57,6 +57,9 @@ workflow NFCORE_CAPBENCH {
     ch_dict          = params.ref_genome_dict   ? Channel.fromPath(params.ref_genome_dict).map{ it -> [[id:'genome_dict'], it]}.collect() : Channel.empty()
     ch_bwamem2_index = params.bwamem2_index     ? Channel.fromPath(params.bwamem2_index).map{ it -> [[id:'bwamem2_index'], it]}.collect() : Channel.empty()
 
+    ch_panel_bed     = params.panel_bed ? Channel.fromPath(params.panel_bed).map{ it -> [[id:'panel_bed'], it]}.collect() : Channel.empty()
+    ch_interval_list = params.interval_list ? Channel.fromPath(params.interval_list).map{ it -> [[id:'interval_list'], it]}.collect() : Channel.empty()
+
     //
     // WORKFLOW: Run pipeline
     //
@@ -65,7 +68,9 @@ workflow NFCORE_CAPBENCH {
         ch_genome_fasta,
         ch_genome_fai,
         ch_dict,
-        ch_bwamem2_index
+        ch_bwamem2_index,
+        ch_panel_bed,
+        ch_interval_list
     )
     emit:
     multiqc_report = CAPBENCH.out.multiqc_report // channel: /path/to/multiqc_report.html

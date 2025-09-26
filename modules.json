@@ -85,9 +85,19 @@
                         "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
                         "installed_by": ["modules"]
                     },
+                    "picard/bedtointervallist": {
+                        "branch": "master",
+                        "git_sha": "df124e87c74d8b40285199f8cc20151f5aa57255",
+                        "installed_by": ["modules"]
+                    },
                     "picard/collecthsmetrics": {
                         "branch": "master",
                         "git_sha": "b8e9f7029eb33f21df6d8470ba6d7cc4bc815358",
+                        "installed_by": ["modules"]
+                    },
+                    "picard/collectmultiplemetrics": {
+                        "branch": "master",
+                        "git_sha": "df124e87c74d8b40285199f8cc20151f5aa57255",
                         "installed_by": ["modules"]
                     },
                     "picard/collectwgsmetrics": {

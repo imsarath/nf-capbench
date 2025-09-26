@@ -12,11 +12,16 @@ include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_capbench_pipeline'
+include { SAMTOOLS_INDEX as INDEX_RAWBAM        } from '../modules/nf-core/samtools/index/main'
 
 
+include { PICARD_BEDTOINTERVALLIST                           } from '../modules/nf-core/picard/bedtointervallist/main'
 include { ALIGNMENT                                          } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
+include { BAM_QC_METRICS as BAMQC              } from '../subworkflows/local/bam_qc_metrics/main'
+include { BAM_QC_METRICS as BAMQC_FOR_UMIRAWBAM              } from '../subworkflows/local/bam_qc_metrics/main'
+include { BAM_QC_METRICS as BAMQC_FOR_UMIPROCESSEDBAM        } from '../subworkflows/local/bam_qc_metrics/main'
 include { FASTQ_CREATE_UMI_CONSENSUS_FGBIO as UMI_PROCESSING } from '../subworkflows/nf-core/fastq_create_umi_consensus_fgbio/main'
-include { PICARD_COLLECTWGSMETRICS                           } from '../modules/nf-core/picard/collectwgsmetrics/main'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -31,6 +36,8 @@ workflow CAPBENCH {
     ch_genome_fai
     ch_dict
     ch_bwamem2_index
+    ch_panel_bed
+    ch_interval_list
 
     main:
 
@@ -59,6 +66,18 @@ workflow CAPBENCH {
     ch_versions = ch_versions.mix(FASTP.out.versions.first())
     ch_input_reads = FASTP.out.reads
 
+    if (!params.interval_list && params.panel_bed) {
+
+        PICARD_BEDTOINTERVALLIST (
+            ch_panel_bed,
+            ch_dict,
+            []
+        )
+
+        ch_versions = ch_versions.mix(PICARD_BEDTOINTERVALLIST.out.versions.first())
+        ch_interval_list = PICARD_BEDTOINTERVALLIST.out.intervallist
+    }
+
     if (params.umi_structure) {
 
         ch_input_reads
@@ -73,11 +92,11 @@ workflow CAPBENCH {
             }
             .set { ch_input_reads }
 
-        ch_input_reads.view()
-
         CAT_FASTQ (
             ch_input_reads
         )
+
+        ch_interval_list.view()
 
         UMI_PROCESSING(
             CAT_FASTQ.out.reads,
@@ -89,17 +108,50 @@ workflow CAPBENCH {
             params.duplex,
             params.min_reads,
             params.min_baseq,
-            params.max_base_error_rate
+            params.max_base_error_rate,
+            ch_interval_list.collect { it[1] }
+        )
+
+        INDEX_RAWBAM (
+            UMI_PROCESSING.out.mappedbam
         )
 
         SAMTOOLS_INDEX(
             UMI_PROCESSING.out.mappedconsensusbam
         )
 
-        ch_aligned_bam = UMI_PROCESSING.out.mappedconsensusbam
+        ch_umi_raw_bam        = UMI_PROCESSING.out.mappedbam
+            .join(INDEX_RAWBAM.out.bai)
+        ch_umi_processed_bam  = UMI_PROCESSING.out.mappedconsensusbam
             .join(SAMTOOLS_INDEX.out.bai)
 
         ch_versions = ch_versions.mix(UMI_PROCESSING.out.versions.first())
+
+        BAMQC_FOR_UMIRAWBAM (
+            ch_umi_raw_bam,
+            ch_genome_fasta,
+            ch_genome_fai,
+            ch_dict,
+            ch_interval_list,
+            false
+        )
+
+        BAMQC_FOR_UMIPROCESSEDBAM (
+            ch_umi_processed_bam,
+            ch_genome_fasta,
+            ch_genome_fai,
+            ch_dict,
+            ch_interval_list,
+            false
+        )
+
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC_FOR_UMIRAWBAM.out.multiple_metrics.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC_FOR_UMIRAWBAM.out.coverage_metrics.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC_FOR_UMIPROCESSEDBAM.out.multiple_metrics.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC_FOR_UMIPROCESSEDBAM.out.coverage_metrics.collect{it[1]}.ifEmpty([]))
+
+        ch_versions = ch_versions.mix(BAMQC_FOR_UMIRAWBAM.out.versions.first())
+        ch_versions = ch_versions.mix(BAMQC_FOR_UMIPROCESSEDBAM.out.versions.first())
 
     } else {
 
@@ -114,20 +166,28 @@ workflow CAPBENCH {
         ch_versions = ch_versions.mix(ALIGNMENT.out.versions.first())
         ch_aligned_bam = ALIGNMENT.out.dedup_bam
             .join(ALIGNMENT.out.dedup_bai)
-    }
 
-    if (params.low_pass_wgs) {
-
-        PICARD_COLLECTWGSMETRICS (
+        BAMQC (
             ch_aligned_bam,
             ch_genome_fasta,
             ch_genome_fai,
-            Channel.value([])
+            ch_dict,
+            ch_interval_list,
+            true
         )
 
-        ch_multiqc_files = ch_multiqc_files.mix(PICARD_COLLECTWGSMETRICS.out.metrics.collect{it[1]}.ifEmpty([]))
-        ch_versions = ch_versions.mix(PICARD_COLLECTWGSMETRICS.out.versions.first())
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC.out.multiple_metrics.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(BAMQC.out.coverage_metrics.collect{it[1]}.ifEmpty([]))
+        ch_versions = ch_versions.mix(BAMQC.out.versions.first())
+
     }
+
+
+
+
+
+    // Downsampling
+
 
     //
     // Collate and save software versions
