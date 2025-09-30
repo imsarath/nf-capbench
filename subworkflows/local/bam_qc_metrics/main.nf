@@ -2,6 +2,7 @@
 include { PICARD_COLLECTMULTIPLEMETRICS  } from '../../../modules/nf-core/picard/collectmultiplemetrics/main'
 include { PICARD_COLLECTHSMETRICS        } from '../../../modules/nf-core/picard/collecthsmetrics/main'
 include { PICARD_COLLECTWGSMETRICS       } from '../../../modules/nf-core/picard/collectwgsmetrics/main'
+include { JUMBLE_RUN                     } from '../../../modules/local/jumble/run/main'
 
 workflow BAM_QC_METRICS {
     take:
@@ -36,8 +37,7 @@ workflow BAM_QC_METRICS {
             ch_input_bam,
             ch_genome_fasta,
             ch_genome_fai,
-            ch_genome_dict,
-
+            []
         )
 
         ch_versions = ch_versions.mix(PICARD_COLLECTWGSMETRICS.out.versions.first())
@@ -50,7 +50,6 @@ workflow BAM_QC_METRICS {
                 [meta, bam, bai, interval_list, interval_list]
             }
 
-        ch_bam.view()
         //
         // MODULE: Collect HS metrics with Picard
         //
@@ -60,7 +59,7 @@ workflow BAM_QC_METRICS {
             ch_genome_fasta,
             ch_genome_fai,
             ch_genome_dict,
-            Channel.empty()
+            [[], []]
         )
 
         coverage_metrics = ch_coverage_metrics.mix(PICARD_COLLECTHSMETRICS.out.metrics)

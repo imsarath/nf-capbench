@@ -15,12 +15,16 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_capb
 include { SAMTOOLS_INDEX as INDEX_RAWBAM        } from '../modules/nf-core/samtools/index/main'
 
 
+include { DOWNSAMPLING_FACTOR                                } from '../modules/local/downsampling_factor/main'
 include { PICARD_BEDTOINTERVALLIST                           } from '../modules/nf-core/picard/bedtointervallist/main'
 include { ALIGNMENT                                          } from '../subworkflows/local/fastq_align_bwamem2/main.nf'
-include { BAM_QC_METRICS as BAMQC              } from '../subworkflows/local/bam_qc_metrics/main'
+include { BAM_QC_METRICS as BAMQC                            } from '../subworkflows/local/bam_qc_metrics/main'
+
 include { BAM_QC_METRICS as BAMQC_FOR_UMIRAWBAM              } from '../subworkflows/local/bam_qc_metrics/main'
 include { BAM_QC_METRICS as BAMQC_FOR_UMIPROCESSEDBAM        } from '../subworkflows/local/bam_qc_metrics/main'
+include { BAM_QC_METRICS as BAMQC_FOR_DOWNSAMPLING           } from '../subworkflows/local/bam_qc_metrics/main'
 include { FASTQ_CREATE_UMI_CONSENSUS_FGBIO as UMI_PROCESSING } from '../subworkflows/nf-core/fastq_create_umi_consensus_fgbio/main'
+include { DOWNSAMPLING                                       } from '../subworkflows/local/downsampling/main.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -96,10 +100,9 @@ workflow CAPBENCH {
             ch_input_reads
         )
 
-        ch_interval_list.view()
-
         UMI_PROCESSING(
             CAT_FASTQ.out.reads,
+            [],
             ch_genome_fasta,
             ch_bwamem2_index,
             ch_dict,
@@ -109,7 +112,8 @@ workflow CAPBENCH {
             params.min_reads,
             params.min_baseq,
             params.max_base_error_rate,
-            ch_interval_list.collect { it[1] }
+            ch_interval_list.collect { it[1] },
+            true
         )
 
         INDEX_RAWBAM (
@@ -153,6 +157,38 @@ workflow CAPBENCH {
         ch_versions = ch_versions.mix(BAMQC_FOR_UMIRAWBAM.out.versions.first())
         ch_versions = ch_versions.mix(BAMQC_FOR_UMIPROCESSEDBAM.out.versions.first())
 
+        ch_duplex_metrics = UMI_PROCESSING.out.duplex_metrics
+
+        ch_duplex_metrics
+            .map { meta, duplex_metrics -> duplex_metrics }
+            .collect()
+            .map { files ->
+                def meta = [id: 'duplex_metrics']
+                return([meta, files])
+            }.set{ ch_duplex_metrics }
+
+
+        DOWNSAMPLING (
+            ch_duplex_metrics,
+            ch_umi_raw_bam, // input BAM files from alignment workflow
+            params.downsampling_targets,
+            params.downsampling_seed,
+            ch_genome_fasta,
+            ch_bwamem2_index,
+            ch_dict,
+            ch_interval_list.collect { it[1] },
+        )
+
+
+        BAMQC_FOR_DOWNSAMPLING (
+            DOWNSAMPLING.out.bam,
+            ch_genome_fasta,
+            ch_genome_fai,
+            ch_dict,
+            ch_interval_list,
+            false
+        )
+
     } else {
 
         ALIGNMENT(
@@ -181,13 +217,6 @@ workflow CAPBENCH {
         ch_versions = ch_versions.mix(BAMQC.out.versions.first())
 
     }
-
-
-
-
-
-    // Downsampling
-
 
     //
     // Collate and save software versions

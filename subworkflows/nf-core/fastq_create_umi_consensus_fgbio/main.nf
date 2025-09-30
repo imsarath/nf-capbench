@@ -25,6 +25,7 @@ workflow FASTQ_CREATE_UMI_CONSENSUS_FGBIO {
 
     take:
     reads                     // channel: [mandatory] [ val(meta), [ reads ] ]
+    bam                       // channel: [optional] [ val(meta), bam, bai ] 
     fasta                     // channel: [mandatory] [ val(meta), /path/to/reference/fasta ]
     bwa_index                 // channel: [optional]  [ val(meta), /path/to/reference/bwaindex ]
     dict                      // channel: [mandatory] [ val(meta), /path/to/reference/dictionary ]
@@ -35,32 +36,13 @@ workflow FASTQ_CREATE_UMI_CONSENSUS_FGBIO {
     min_baseq                 // integer: [mandatory]
     max_base_error_rate       // integer: [mandatory] Maximum base error rate for consensus building
     interval_list             // channel: [optional] /path/to/interval/list for CollectDuplexSeqMetrics
+    is_fqinput                // bool:    [mandatory] true or false depending on input fq or not
 
     main:
 
     ch_versions = Channel.empty()
 
-    // reference is indexed if index not available in iGenomes - this is set in modules configuration
-    // NB: this should exist in main workflow in a form like:
-    // params.bwaindex = WorkflowMain.getGenomeAttribute(params, 'bwa')
-
-    // using information in val(read_structure) FASTQ reads are converted into
-    // a tagged unmapped BAM file (uBAM)
-    // if the UMIs are present in read names instead of inline sequences
-    // please make sure you adjust your config to include --extract-umis-from-read-names with ext.args
-    // of the following step
-    FASTQTOBAM ( reads )
-    ch_versions = ch_versions.mix(FASTQTOBAM.out.versions)
-
-    // in order to map uBAM using BWA MEM, we need to convert uBAM to FASTQ
-    BAM2FASTQ_PRE ( FASTQTOBAM.out.bam, false )
-    ch_versions = ch_versions.mix(BAM2FASTQ_PRE.out.versions)
-
-    // the user can choose here to use either bwa-mem (default) or bwa-mem2
-    aligned_bam = Channel.empty()
-
     if (aligner == "bwa-mem") {
-
         if(!bwa_index){
             BWAMEM1_INDEX ( fasta )
             ch_versions = ch_versions.mix(BWAMEM1_INDEX.out.versions)
@@ -68,33 +50,65 @@ workflow FASTQ_CREATE_UMI_CONSENSUS_FGBIO {
 
         // sets bwaindex to correct input
         bwaindex    = bwa_index ?: BWAMEM1_INDEX.out.index
-        // appropriately tagged interleaved FASTQ reads are mapped to the reference
-        // the aligner should be set with the following parameters "-p -K 150000000 -Y"
-        // to be configured in ext.args of your config
-        BWAMEM1_MEM_PRE ( BAM2FASTQ_PRE.out.fastq, bwaindex, fasta, false )
-        ch_versions = ch_versions.mix(BWAMEM1_MEM_PRE.out.versions)
-        aligned_bam = aligned_bam.mix(BWAMEM1_MEM_PRE.out.bam)
+        
     } else {
-
         if(!bwa_index){
             BWAMEM2_INDEX ( fasta )
             ch_versions = ch_versions.mix(BWAMEM2_INDEX.out.versions)
         }
-
         // sets bwaindex to correct input
         bwaindex    = bwa_index ?: BWAMEM2_INDEX.out.index
-        // appropriately tagged interleaved FASTQ reads are mapped to the reference
-        // the aligner should be set with the following parameters "-p -K 150000000 -Y"
-        // to be configured in ext.args of your config
-        BWAMEM2_MEM_PRE ( BAM2FASTQ_PRE.out.fastq, bwaindex, fasta, false )
-        ch_versions = ch_versions.mix(BWAMEM2_MEM_PRE.out.versions)
-        aligned_bam = BWAMEM2_MEM_PRE.out.bam
     }
 
-    // in order to tag mates information in the BAM file
-    // FGBIO tool ZipperBams is used to merge info from mapped and unmapped BAM files
-    ZIPPERBAMS_PRE ( FASTQTOBAM.out.bam, aligned_bam, fasta, dict )
-    ch_versions = ch_versions.mix(ZIPPERBAMS_PRE.out.versions)
+    if (is_fqinput) {
+        // reference is indexed if index not available in iGenomes - this is set in modules configuration
+        // NB: this should exist in main workflow in a form like:
+        // params.bwaindex = WorkflowMain.getGenomeAttribute(params, 'bwa')
+
+        // using information in val(read_structure) FASTQ reads are converted into
+        // a tagged unmapped BAM file (uBAM)
+        // if the UMIs are present in read names instead of inline sequences
+        // please make sure you adjust your config to include --extract-umis-from-read-names with ext.args
+        // of the following step
+        FASTQTOBAM ( reads )
+        ch_versions = ch_versions.mix(FASTQTOBAM.out.versions)
+
+
+        // in order to map uBAM using BWA MEM, we need to convert uBAM to FASTQ
+        BAM2FASTQ_PRE ( FASTQTOBAM.out.bam, false )
+        ch_versions = ch_versions.mix(BAM2FASTQ_PRE.out.versions)
+
+        // the user can choose here to use either bwa-mem (default) or bwa-mem2
+        aligned_bam = Channel.empty()
+        
+        if (aligner == "bwa-mem") {
+            // appropriately tagged interleaved FASTQ reads are mapped to the reference
+            // the aligner should be set with the following parameters "-p -K 150000000 -Y"
+            // to be configured in ext.args of your config
+            BWAMEM1_MEM_PRE ( BAM2FASTQ_PRE.out.fastq, bwaindex, fasta, false )
+            ch_versions = ch_versions.mix(BWAMEM1_MEM_PRE.out.versions)
+            aligned_bam = aligned_bam.mix(BWAMEM1_MEM_PRE.out.bam)
+        } else {
+            // appropriately tagged interleaved FASTQ reads are mapped to the reference
+            // the aligner should be set with the following parameters "-p -K 150000000 -Y"
+            // to be configured in ext.args of your config
+            BWAMEM2_MEM_PRE ( BAM2FASTQ_PRE.out.fastq, bwaindex, fasta, false )
+            ch_versions = ch_versions.mix(BWAMEM2_MEM_PRE.out.versions)
+            aligned_bam = BWAMEM2_MEM_PRE.out.bam
+
+        }
+        // in order to tag mates information in the BAM file
+        // FGBIO tool ZipperBams is used to merge info from mapped and unmapped BAM files
+        ZIPPERBAMS_PRE ( FASTQTOBAM.out.bam, aligned_bam, fasta, dict )
+        ch_versions = ch_versions.mix(ZIPPERBAMS_PRE.out.versions)
+
+        ch_ubam  = FASTQTOBAM.out.bam
+        zippedbam_pre = ZIPPERBAMS_PRE.out.bam
+    } else {
+        ch_ubam    = Channel.empty()
+        zippedbam_pre = bam
+    }
+    
 
     // appropriately tagged reads are now grouped by UMI information
     // note that in tests ext.args has been set to recommended --edits 1
@@ -103,7 +117,7 @@ workflow FASTQ_CREATE_UMI_CONSENSUS_FGBIO {
     // For multiplex PCR and similar data where reads' genomic positions are fixed by the primers
     // it is recommended to use --strategy Identity to reduce runtime at the expense of lower accuracy
     // For duplex UMIs reads MUST be grouped using --strategy paired
-    GROUPREADSBYUMI ( ZIPPERBAMS_PRE.out.bam, groupreadsbyumi_strategy )
+    GROUPREADSBYUMI ( zippedbam_pre, groupreadsbyumi_strategy )
     ch_versions = ch_versions.mix(GROUPREADSBYUMI.out.versions)
 
     // MODULE: Collect DuplexSeq metrics with Fgbio
@@ -156,10 +170,11 @@ workflow FASTQ_CREATE_UMI_CONSENSUS_FGBIO {
     ch_versions = ch_versions.mix(SORTBAM.out.versions)
 
     emit:
-    ubam               = FASTQTOBAM.out.bam             // channel: [ val(meta), [ bam ] ]
-    mappedbam          = ZIPPERBAMS_PRE.out.bam       // channel: [ val(meta), [ bam ] ]
+    ubam               = ch_ubam                     // channel: [ val(meta), [ bam ] ]
+    mappedbam          = zippedbam_pre                  // channel: [ val(meta), [ bam ] ]
     groupbam           = GROUPREADSBYUMI.out.bam        // channel: [ val(meta), [ bam ] ]
     consensusbam       = consensus_bam                  // channel: [ val(meta), [ bam ] ]
     mappedconsensusbam = SORTBAM.out.bam                // channel: [ val(meta), [ bam ] ]
+    duplex_metrics     = COLLECTDUPLEXSEQMETRICS.out.duplex_yield_metrics // channel: [ val(meta), [ metrics ] ]
     versions           = ch_versions                    // channel: [ versions.yml ]
 }
