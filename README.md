@@ -22,7 +22,7 @@
 
 **imsarath/nf-capbench** is an automated and reproducible Nextflow pipeline designed to benchmark and evaluate capture kit performance. It streamlines the process of assessing sequencing data quality, coverage metrics, and enrichment efficiency, providing standardized reports for consistent comparison across samples and kits. With its modular design and containerized execution, nf-capbench ensures scalability, reproducibility, and easy integration into existing bioinformatics workflows.
 
-[Workflow Diagram](docs/images/nf-capbench-workflow.png)
+![Workflow Diagram](docs/images/nf-capbench-workflow.png)
 
 1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
 2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
