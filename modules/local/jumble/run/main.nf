@@ -7,7 +7,7 @@ process JUMBLE_RUN {
     container "docker://sarathmurugan01/jumble:v1.0.0"
 
     input:
-    tuple val(meta), path(bam)
+    tuple val(meta), path(bam), path(bai)
     tuple val(meta2), path(jumble_ref)
 
     output:
