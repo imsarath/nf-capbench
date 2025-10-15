@@ -54,6 +54,11 @@ process JUMBLE_RUN {
 
     """
     touch ${prefix}.counts.RDS
+    touch ${prefix}.cns
+    touch ${prefix}.cnr
+    touch ${prefix}_dnacopy.seg
+    touch ${prefix}_profile_bedgraph
+    touch ${prefix}_segments_bedgraph
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
