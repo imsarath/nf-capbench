@@ -25,8 +25,13 @@
 ![Workflow Diagram](docs/images/nf-capbench-workflow.png)
 
 1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
-3. UMI Processing ([`FGBIO`]())
+2. Adapter trimming ([`FastP`](https://github.com/OpenGene/fastp))
+3. Alignment to reference genome ([`BWAMEM2`](https://github.com/bwa-mem2/bwa-mem2))
+4. UMI Processing ([`FGBIO`]())
+5. Post-alignment QC ([`Picard - CollectHsMetrics, CollectMultipleMetrics`](https://broadinstitute.github.io/picard/))
+6. Calculate Downsampling Factors
+7. Downsampling ([`samtools`]())
+8. Summary Plots
 
 ## Usage
 
@@ -34,30 +39,34 @@
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data.
 
 <!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
+     Explain what rows and columns represent. For instance (please edit as appropriate): -->
 
 First, prepare a samplesheet with your input data that looks as follows:
 
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample_id,capturekit,lane,fastq_1,fastq_2
+P-NA12877,ILLUMINA,L2,data/LB-P-NA12877-CFDNA-03098850-TD1-C31_S1_L002_R1_001.fastq.gz,data/LB-P-NA12877-CFDNA-03098850-TD1-C31_S1_L002_R2_001.fastq.gz
+P-NA12877,ILLUMINA,L3,data/LB-P-NA12877-CFDNA-03098850-TD1-C31_S1_L003_R1_001.fastq.gz,data/LB-P-NA12877-CFDNA-03098850-TD1-C31_S1_L003_R2_001.fastq.gz
+P-NA12878,EVO,L4,data/LB-P-NA12878-N-03098850-TD1-C31_S1_L004_R1_001.fastq.gz,data/LB-P-NA12878-N-03098850-TD1-C31_S1_L004_R2_001.fastq.gz
+P-NA12878,EVO,L5,data/LB-P-NA12878-N-03098850-TD1-C31_S1_L005_R1_001.fastq.gz,data/LB-P-NA12878-N-03098850-TD1-C31_S1_L005_R2_001.fastq.gz
+
 ```
 
 Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
-
--->
 
 Now, you can run the pipeline using:
 
 <!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
 
 ```bash
-nextflow run nf-core/capbench \
+nextflow run imsarath/capbench \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
    --outdir <OUTDIR>
+   --panel
+
 ```
 
 > [!WARNING]
@@ -65,11 +74,11 @@ nextflow run nf-core/capbench \
 
 For more details and further functionality, please refer to the [usage documentation](https://nf-co.re/capbench/usage) and the [parameter documentation](https://nf-co.re/capbench/parameters).
 
-## Pipeline output
+<!-- ## Pipeline output
 
 To see the results of an example test run with a full size dataset refer to the [results](https://nf-co.re/capbench/results) tab on the nf-core website pipeline page.
 For more details about the output files and reports, please refer to the
-[output documentation](https://nf-co.re/capbench/output).
+[output documentation](https://nf-co.re/capbench/output). -->
 
 ## Credits
 

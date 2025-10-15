@@ -11,6 +11,7 @@ workflow BAM_QC_METRICS {
     ch_genome_fai
     ch_genome_dict
     ch_interval_list
+    ch_jumble_ref  // channel: reference for jumble, only required if running
     low_pass_wgs
 
     main:
@@ -65,6 +66,11 @@ workflow BAM_QC_METRICS {
         coverage_metrics = ch_coverage_metrics.mix(PICARD_COLLECTHSMETRICS.out.metrics)
         ch_versions = ch_versions.mix(PICARD_COLLECTHSMETRICS.out.versions.first())
     }
+
+    JUMBLE_RUN(
+        ch_input_bam,
+        ch_jumble_ref
+    )
 
 
     emit:

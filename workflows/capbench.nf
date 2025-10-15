@@ -42,6 +42,7 @@ workflow CAPBENCH {
     ch_bwamem2_index
     ch_panel_bed
     ch_interval_list
+    ch_jumble_ref
 
     main:
 
@@ -209,6 +210,7 @@ workflow CAPBENCH {
             ch_genome_fai,
             ch_dict,
             ch_interval_list,
+            ch_jumble_ref,
             true
         )
 

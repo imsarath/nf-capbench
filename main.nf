@@ -59,6 +59,7 @@ workflow NFCORE_CAPBENCH {
 
     ch_panel_bed     = params.panel_bed ? Channel.fromPath(params.panel_bed).map{ it -> [[id:'panel_bed'], it]}.collect() : Channel.empty()
     ch_interval_list = params.interval_list ? Channel.fromPath(params.interval_list).map{ it -> [[id:'interval_list'], it]}.collect() : Channel.empty()
+    ch_jumble_ref     = params.jumble_ref ? Channel.fromPath(params.jumble_ref).map{ it -> [[id:'jumble_ref'], it]}.collect() : Channel.empty()
 
     //
     // WORKFLOW: Run pipeline
@@ -70,7 +71,8 @@ workflow NFCORE_CAPBENCH {
         ch_dict,
         ch_bwamem2_index,
         ch_panel_bed,
-        ch_interval_list
+        ch_interval_list,
+        ch_jumble_ref
     )
     emit:
     multiqc_report = CAPBENCH.out.multiqc_report // channel: /path/to/multiqc_report.html

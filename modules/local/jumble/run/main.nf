@@ -4,7 +4,7 @@ process JUMBLE_RUN {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container "sarathmurugan01/jumble:v1.0.0"
+    container "docker://sarathmurugan01/jumble:v1.0.0"
 
     input:
     tuple val(meta), path(bam)
